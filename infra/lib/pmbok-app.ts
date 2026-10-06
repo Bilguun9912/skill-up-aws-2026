@@ -69,6 +69,10 @@ export function buildPmbokApp(app: App, config: AppConfig, opts: BuildOptions = 
   const placeholders = findPlaceholders(config);
   if (placeholders.length > 0) {
     const msg = `Config still has placeholder values (CHANGE-ME): ${placeholders.join(', ')}. Set them in infra/cdk.json before deploying.`;
+    // CI deploys pass `-c strictConfig=true` so a placeholder can never reach AWS.
+    if (String(app.node.tryGetContext('strictConfig')) === 'true') {
+      throw new Error(msg);
+    }
     Annotations.of(ops).addWarningV2('pmbok:config-placeholder', msg);
   }
 

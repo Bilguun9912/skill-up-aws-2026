@@ -1,0 +1,102 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+# Never run two deploys at once; let a running deploy finish.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: dev # OIDC trust is scoped to this environment; add required reviewers here if wanted
+    permissions:
+      contents: read
+      id-token: write # GitHub OIDC → AWS
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-1' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            infra/package-lock.json
+      - name: Install
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+          npm ci --prefix infra
+      - run: npm run build --prefix frontend
+
+      - name: Apply config from GitHub variables
+        working-directory: infra
+        env:
+          MODEL_ID: ${{ vars.BEDROCK_MODEL_ID }}
+          QUERY_REWRITE_MODEL_ID: ${{ vars.QUERY_REWRITE_MODEL_ID }}
+          BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
+          COGNITO_DOMAIN_PREFIX: ${{ vars.COGNITO_DOMAIN_PREFIX }}
+          OKTA_CONFIG: ${{ vars.OKTA_CONFIG }}
+        run: |
+          set -euo pipefail
+          for v in MODEL_ID BUDGET_EMAIL COGNITO_DOMAIN_PREFIX; do
+            if [ -z "${!v}" ]; then echo "::error::GitHub variable for $v is not set (see docs/cicd.md)"; exit 1; fi
+          done
+          jq --arg region "$AWS_REGION" --arg model "$MODEL_ID" --arg email "$BUDGET_EMAIL" --arg prefix "$COGNITO_DOMAIN_PREFIX" \
+            '.context.region=$region | .context.modelId=$model | .context.budget.email=$email | .context.cognitoDomainPrefix=$prefix' \
+            cdk.json > cdk.tmp.json && mv cdk.tmp.json cdk.json
+          if [ -n "$QUERY_REWRITE_MODEL_ID" ]; then
+            jq --arg m "$QUERY_REWRITE_MODEL_ID" '.context.queryRewriteModelId=$m' cdk.json > cdk.tmp.json && mv cdk.tmp.json cdk.json
+          fi
+          if [ -n "$OKTA_CONFIG" ]; then
+            echo "$OKTA_CONFIG" | jq -e 'has("issuerUrl") and has("clientId") and has("clientSecretName")' > /dev/null \
+              || { echo "::error::OKTA_CONFIG must be JSON with issuerUrl, clientId, clientSecretName"; exit 1; }
+            jq --argjson okta "$OKTA_CONFIG" '.context.okta=$okta' cdk.json > cdk.tmp.json && mv cdk.tmp.json cdk.json
+          fi
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: cdk deploy
+        working-directory: infra
+        run: |
+          npx cdk deploy --all \
+            --require-approval never \
+            --outputs-file cdk-outputs.json \
+            -c strictConfig=true
+
+      - name: Smoke test
+        working-directory: infra
+        run: |
+          set -euo pipefail
+          URL=$(jq -r '."Pmbok-Frontend".CloudFrontUrl' cdk-outputs.json)
+          echo "Site: $URL"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/")
+          [ "$code" = "200" ] || { echo "::error::site returned $code"; exit 1; }
+          curl -sf "$URL/config.json" | jq -e '.userPoolId and .clientId' > /dev/null
+          # Unauthenticated API call must reach the Lambda (via OAC) and be rejected by it with 401.
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/me")
+          [ "$code" = "401" ] || { echo "::error::/api/me without token returned $code (expected 401 — check OAC / Lambda permissions)"; exit 1; }
+          echo "### Deployed :rocket:" >> "$GITHUB_STEP_SUMMARY"
+          echo "Site: $URL" >> "$GITHUB_STEP_SUMMARY"

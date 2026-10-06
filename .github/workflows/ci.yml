@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_call: # reused by deploy.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [backend, frontend, infra]
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.package }}/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
+      - if: matrix.package == 'frontend'
+        run: npm run build
+
+  synth:
+    name: cdk synth
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            infra/package-lock.json
+      - name: Install
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+          npm ci --prefix infra
+      - run: npm run build --prefix frontend
+      # No AWS credentials: synth only (placeholders allowed here, they only warn).
+      - name: cdk synth
+        working-directory: infra
+        env:
+          CDK_DEFAULT_ACCOUNT: '123456789012'
+        run: npx cdk synth --all -q
