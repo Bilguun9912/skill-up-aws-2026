@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+cdk.out/
+coverage/
+*.log
+.env
+.env.*
+.DS_Store
+
+# PMBOK source PDFs are licensed material — never commit
+pmbok-source/
+*.pdf
+
+# local frontend runtime config
+frontend/public/config.json

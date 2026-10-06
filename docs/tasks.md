@@ -31,3 +31,9 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⛔ blocked. Agents: report r
 | P2-3 | Prompt tuning with a small eval set of real PM questions | ☐ |
 | P2-4 | Model A/B: Sonnet 5.5 vs Haiku 4.5 vs Nova | ☐ |
 | P2-5 | Frontend: optional `identityProvider` in config.json to skip Cognito page and go straight to Okta | ☐ |
+
+## CI/CD
+| # | Task | Status |
+|---|---|---|
+| C1 | GitHub Actions: CI (tests ×3 + synth) and Deploy (OIDC role, `cdk deploy --all`, smoke test) — see `docs/cicd.md` | ☑ |
+| C2 | Owner: bootstrap, deploy `Pmbok-GithubOidc`, create `dev` environment + variables (docs/cicd.md "One-time setup") | ☐ |

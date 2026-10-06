@@ -110,3 +110,5 @@ be developed in parallel without lockfile conflicts. `infra` bundles `backend/sr
 - [prompting.md](prompting.md) — system prompt & citation design
 - [conventions.md](conventions.md) — coding/config conventions, gotchas
 - [tasks.md](tasks.md) — task breakdown & status
+- [cicd.md](cicd.md) — GitHub Actions deploy (OIDC)
+- [deploy.md](deploy.md) — manual deploy, Okta, upload, smoke test
