@@ -56,6 +56,7 @@ jobs:
           BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
           COGNITO_DOMAIN_PREFIX: ${{ vars.COGNITO_DOMAIN_PREFIX }}
           OKTA_CONFIG: ${{ vars.OKTA_CONFIG }}
+          ALLOWED_IP_CIDRS: ${{ vars.ALLOWED_IP_CIDRS }}
         run: |
           set -euo pipefail
           for v in MODEL_ID BUDGET_EMAIL COGNITO_DOMAIN_PREFIX; do
@@ -71,6 +72,16 @@ jobs:
             echo "$OKTA_CONFIG" | jq -e 'has("issuerUrl") and has("clientId") and has("clientSecretName")' > /dev/null \
               || { echo "::error::OKTA_CONFIG must be JSON with issuerUrl, clientId, clientSecretName"; exit 1; }
             jq --argjson okta "$OKTA_CONFIG" '.context.okta=$okta' cdk.json > cdk.tmp.json && mv cdk.tmp.json cdk.json
+          fi
+          if [ -n "$ALLOWED_IP_CIDRS" ]; then
+            # Accept a JSON array or a comma/space/newline-separated list.
+            if echo "$ALLOWED_IP_CIDRS" | jq -e 'type == "array"' > /dev/null 2>&1; then
+              ips="$ALLOWED_IP_CIDRS"
+            else
+              ips=$(printf '%s' "$ALLOWED_IP_CIDRS" | tr ', ' '\n\n' | sed '/^$/d' | jq -R . | jq -sc .)
+            fi
+            jq --argjson ips "$ips" '.context.allowedIpCidrs=$ips' cdk.json > cdk.tmp.json && mv cdk.tmp.json cdk.json
+            echo "IP allowlist: $(echo "$ips" | jq 'length') entries"
           fi
 
       - uses: aws-actions/configure-aws-credentials@v6
@@ -92,6 +103,16 @@ jobs:
           set -euo pipefail
           URL=$(jq -r '."Pmbok-Frontend".CloudFrontUrl' cdk-outputs.json)
           echo "Site: $URL"
+          # With the IP allowlist active, this GitHub runner is (correctly) outside the company network.
+          blocked=$(curl -s -o /dev/null -D - "$URL/" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-pmbok-blocked"{print $2}')
+          if [ "$blocked" = "ip" ]; then
+            api_blocked=$(curl -s -o /dev/null -D - "$URL/api/me" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-pmbok-blocked"{print $2}')
+            [ "$api_blocked" = "ip" ] || { echo "::error::site is IP-restricted but /api is not"; exit 1; }
+            echo "IP allowlist active: site and /api return 403 to this runner. Run the full smoke test from the office/VPN (docs/deploy.md §7)."
+            echo "### Deployed :rocket: (IP-restricted)" >> "$GITHUB_STEP_SUMMARY"
+            echo "Site: $URL — reachable only from the company network" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/")
           [ "$code" = "200" ] || { echo "::error::site returned $code"; exit 1; }
           curl -sf "$URL/config.json" | jq -e '.userPoolId and .clientId' > /dev/null

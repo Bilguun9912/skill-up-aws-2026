@@ -1,0 +1,13 @@
+# Local dev only (docs/local-dev.md). DynamoDB Local with data persisted between runs.
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    command: -jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data
+    ports:
+      - '8000:8000'
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+    user: root
+
+volumes:
+  dynamodb-data:

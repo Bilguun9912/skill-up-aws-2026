@@ -112,3 +112,4 @@ be developed in parallel without lockfile conflicts. `infra` bundles `backend/sr
 - [tasks.md](tasks.md) — task breakdown & status
 - [cicd.md](cicd.md) — GitHub Actions deploy (OIDC)
 - [deploy.md](deploy.md) — manual deploy, Okta, upload, smoke test
+- [local-dev.md](local-dev.md) — run everything locally (fake or real Bedrock)

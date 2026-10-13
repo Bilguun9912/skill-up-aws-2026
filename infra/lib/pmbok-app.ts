@@ -68,12 +68,24 @@ export function buildPmbokApp(app: App, config: AppConfig, opts: BuildOptions = 
 
   const placeholders = findPlaceholders(config);
   if (placeholders.length > 0) {
-    const msg = `Config still has placeholder values (CHANGE-ME): ${placeholders.join(', ')}. Set them in infra/cdk.json before deploying.`;
+    const msg = `Config still has placeholder values (CHANGE-ME): ${placeholders.join(', ')}. Set them in ~/.cdk.json (local) or the GitHub variables (CI) before deploying — never commit real values to infra/cdk.json.`;
     // CI deploys pass `-c strictConfig=true` so a placeholder can never reach AWS.
     if (String(app.node.tryGetContext('strictConfig')) === 'true') {
       throw new Error(msg);
     }
     Annotations.of(ops).addWarningV2('pmbok:config-placeholder', msg);
+  }
+
+  // Internal tool: the site should be IP-restricted. CI (strictConfig) refuses to deploy it open
+  // unless explicitly allowed with -c allowPublicAccess=true.
+  if (config.allowedIpCidrs.length === 0) {
+    const msg =
+      'allowedIpCidrs is empty: the site and /api are reachable from any IP (login still required). ' +
+      'Set allowedIpCidrs (GitHub variable ALLOWED_IP_CIDRS) or pass -c allowPublicAccess=true.';
+    const strict = String(app.node.tryGetContext('strictConfig')) === 'true';
+    const allowPublic = String(app.node.tryGetContext('allowPublicAccess')) === 'true';
+    if (strict && !allowPublic) throw new Error(msg);
+    if (!allowPublic) Annotations.of(frontend).addWarningV2('pmbok:no-ip-allowlist', msg);
   }
 
   return { ops, auth, data, knowledge, api, frontend };

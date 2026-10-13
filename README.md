@@ -8,7 +8,7 @@ Okta login · streaming chat · chat history · PMBOK citations. Serverless on A
 - API & data model: [docs/api.md](docs/api.md)
 - Security: [docs/security.md](docs/security.md) · Cost: [docs/cost.md](docs/cost.md)
 - Prompting: [docs/prompting.md](docs/prompting.md) · Conventions: [docs/conventions.md](docs/conventions.md)
-- Tasks & status: [docs/tasks.md](docs/tasks.md) · CI/CD: [docs/cicd.md](docs/cicd.md) · Deploy: [docs/deploy.md](docs/deploy.md)
+- Tasks & status: [docs/tasks.md](docs/tasks.md) · CI/CD: [docs/cicd.md](docs/cicd.md) · Deploy: [docs/deploy.md](docs/deploy.md) · Local dev: [docs/local-dev.md](docs/local-dev.md)
 
 ## Packages
 | Dir | What |
@@ -17,3 +17,8 @@ Okta login · streaming chat · chat history · PMBOK citations. Serverless on A
 | `backend/` | api Lambda (TypeScript, Node 22) |
 | `frontend/` | React SPA (Vite) |
 | `scripts/` | ops helpers (PMBOK upload + KB ingestion) |
+
+## Quick start (local, no AWS needed)
+```bash
+./scripts/dev-local.sh      # needs Docker; open http://localhost:5173
+```

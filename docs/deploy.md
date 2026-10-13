@@ -16,9 +16,22 @@ Default region `ap-northeast-1`; all commands assume your AWS credentials/profil
 - Corporate TLS interception: if `npm` fails with `SELF_SIGNED_CERT_IN_CHAIN`, prefix npm/npx commands with
   `NODE_EXTRA_CA_CERTS=/path/to/corp-ca.pem` (don't change the global npm config).
 
-## 1. Configure `infra/cdk.json`
+## 1. Configure (in `~/.cdk.json`, NOT `infra/cdk.json`)
 
-Edit `context` (anything can also be overridden per command with `-c key=value`):
+> ⚠️ **The GitHub repo is public.** Keep the committed `infra/cdk.json` placeholders as they are. Put your real values
+> in `~/.cdk.json` in your home directory, which CDK merges into every app's `context`. You can also pass `-c key=value`.
+> For deploys from GitHub Actions, use the GitHub variables in `docs/cicd.md`.
+
+```json
+{ "context": {
+  "modelId": "<inference profile id>",
+  "budget": { "monthlyLimitUsd": 100, "alertThresholdsUsd": [10, 30, 60], "email": "you@example.com" },
+  "cognitoDomainPrefix": "pmbok-assistant-<unique>",
+  "allowedIpCidrs": ["<company ip 1>", "<company ip 2>"]
+} }
+```
+
+Keys:
 
 | Key | Set to |
 |---|---|
@@ -29,10 +42,12 @@ Edit `context` (anything can also be overridden per command with `-c key=value`)
 | `budget.monthlyLimitUsd` / `alertThresholdsUsd` | default 100 / [10, 30, 60] |
 | `cognitoDomainPrefix` | globally unique, lowercase, no `aws`/`amazon`/`cognito`, e.g. `pmbok-assistant-<account-id>` |
 | `owner` | value for the `owner` tag |
+| `allowedIpCidrs` | company egress IPv4 addresses/CIDRs (ADR-012). Empty = open to the internet: synth warns, and `strictConfig` refuses to deploy |
 | `okta` | leave **absent** for the first deploy (see step 5) |
 | `reservedConcurrency` | leave absent (ADR-011) |
 
-`npx cdk synth` warns while any `CHANGE-ME` placeholder is left. Don't deploy with placeholders.
+`npx cdk synth` warns while any `CHANGE-ME` placeholder is left. Always deploy with `-c strictConfig=true`, which turns
+the placeholder and empty-allowlist warnings into errors.
 
 ## 2. Build & verify locally
 
@@ -88,7 +103,7 @@ A temporary password is emailed; you set a new one at first login.
    aws secretsmanager create-secret --region ap-northeast-1 \
      --name pmbok/okta-client-secret --secret-string '<okta client secret>'
    ```
-3. Add to `infra/cdk.json` → `context`:
+3. Add to `~/.cdk.json` → `context` (or GitHub variable `OKTA_CONFIG` for CI):
    ```json
    "okta": {
      "issuerUrl": "https://<your-org>.okta.com",
@@ -150,7 +165,7 @@ Common failures:
 
 - Backend code: `cd infra && npx cdk deploy Pmbok-Api`
 - Frontend: `(cd frontend && npm run build) && (cd infra && npx cdk deploy Pmbok-Frontend)` (CloudFront cache is invalidated automatically)
-- Config change: edit `cdk.json`, `npx cdk diff`, `npx cdk deploy --all`
+- Config change: edit `~/.cdk.json` (or the GitHub variables), `npx cdk diff`, `npx cdk deploy --all -c strictConfig=true`
 
 Cross-stack references use CDK "weak" references (`Fn::GetStackOutput`), so stacks aren't locked by exports.
 Always deploy/destroy with `--all` (or in dependency order) to keep consumers consistent.

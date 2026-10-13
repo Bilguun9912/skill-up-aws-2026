@@ -7,7 +7,7 @@ ChatGPT-style assistant that guides project managers using the PMBOK Guide (6th 
 - infra → `docs/decisions.md`, `docs/conventions.md` (CDK specifics), `docs/security.md`, `docs/cost.md`
 - backend → `docs/api.md`, `docs/prompting.md`, `docs/conventions.md` (Backend specifics), `docs/security.md`
 - frontend → `docs/api.md`, `docs/conventions.md` (Frontend specifics)
-- status → `docs/tasks.md` · CI/CD → `docs/cicd.md`
+- status → `docs/tasks.md` · CI/CD → `docs/cicd.md` · local dev → `docs/local-dev.md`
 
 ## Hard rules
 - Docs in `docs/` are the source of truth. If you must deviate, say so in your report (the coordinator updates docs).

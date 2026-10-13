@@ -9,6 +9,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
+import { buildViewerRequestCode } from '../cloudfront-functions';
 import { AppConfig, clientIdParamName } from '../config';
 
 export interface FrontendStackProps extends StackProps {
@@ -28,21 +29,6 @@ export const FRONTEND_DIST = path.resolve(__dirname, '../../../frontend/dist');
 /** Headers the SPA sends to /api/* that must reach the Lambda. Never `Authorization` (OAC SigV4) or `Host`. */
 export const API_FORWARDED_HEADERS = ['x-auth-token', 'x-amz-content-sha256', 'content-type', 'accept', 'x-ui-lang'];
 
-/**
- * SPA routing on the default (S3) behavior only: extension-less paths → /index.html.
- * Implemented as a viewer-request function instead of distribution error responses
- * so API 4xx/5xx from /api/* are never masked.
- */
-const SPA_REWRITE_FN = `
-function handler(event) {
-  var req = event.request;
-  var uri = req.uri;
-  if (uri.indexOf('/api/') === 0 || uri === '/api') { return req; }
-  var last = uri.substring(uri.lastIndexOf('/') + 1);
-  if (last.indexOf('.') === -1) { req.uri = '/index.html'; }
-  return req;
-}
-`;
 
 /**
  * Site bucket + CloudFront (OAC to S3 and to the Lambda Function URL), the Cognito
@@ -66,11 +52,23 @@ export class FrontendStack extends Stack {
       autoDeleteObjects: true,
     });
 
+    const ipRestricted = config.allowedIpCidrs.length > 0;
     const spaRewrite = new cloudfront.Function(this, 'SpaRewrite', {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
-      code: cloudfront.FunctionCode.fromInline(SPA_REWRITE_FN),
-      comment: 'SPA routing: extension-less paths to /index.html',
+      code: cloudfront.FunctionCode.fromInline(
+        buildViewerRequestCode({ allowedIpCidrs: config.allowedIpCidrs, spaRewrite: true }),
+      ),
+      comment: ipRestricted ? 'IP allowlist + SPA routing' : 'SPA routing: extension-less paths to /index.html',
     });
+    const apiIpCheck = ipRestricted
+      ? new cloudfront.Function(this, 'ApiIpAllowlist', {
+          runtime: cloudfront.FunctionRuntime.JS_2_0,
+          code: cloudfront.FunctionCode.fromInline(
+            buildViewerRequestCode({ allowedIpCidrs: config.allowedIpCidrs, spaRewrite: false }),
+          ),
+          comment: 'IP allowlist for /api/*',
+        })
+      : undefined;
 
     const apiOriginRequestPolicy = new cloudfront.OriginRequestPolicy(this, 'ApiOriginRequestPolicy', {
       comment: 'PMBOK /api/* -> Lambda URL (OAC). No Host/Authorization.',
@@ -84,6 +82,9 @@ export class FrontendStack extends Stack {
       defaultRootObject: 'index.html',
       priceClass: cloudfront.PriceClass.PRICE_CLASS_200,
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
+      // The allowlist is IPv4-only (company egress IPs). With IPv6 on, dual-stack clients would
+      // connect over IPv6 and be blocked, so IPv6 is turned off while the allowlist is active.
+      enableIpv6: !ipRestricted,
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -101,6 +102,9 @@ export class FrontendStack extends Stack {
           cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
           originRequestPolicy: apiOriginRequestPolicy,
           compress: false, // don't buffer/alter the NDJSON stream
+          functionAssociations: apiIpCheck
+            ? [{ function: apiIpCheck, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }]
+            : undefined,
         },
       },
       // NOTE: intentionally no errorResponses — they'd apply to /api/* too.

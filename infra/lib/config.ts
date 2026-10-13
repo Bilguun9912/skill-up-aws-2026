@@ -52,6 +52,12 @@ export interface AppConfig {
   cognitoDomainPrefix: string;
   okta?: OktaConfig;
   localDevOrigins: string[];
+  /**
+   * IPv4 addresses/CIDRs allowed to reach CloudFront (site + /api). Empty = open to the internet.
+   * Never commit real company IPs (public repo): set via GitHub variable ALLOWED_IP_CIDRS,
+   * `-c allowedIpCidrs='[...]'`, or ~/.cdk.json. Normalised to CIDR (bare IP → /32).
+   */
+  allowedIpCidrs: string[];
   reservedConcurrency?: number;
   /**
    * Use an inline stub instead of bundling ../backend (tests, or when backend
@@ -203,6 +209,12 @@ export function loadConfig(node: ContextSource): AppConfig {
     if (!/^https?:\/\/[^/]+$/.test(o)) throw new ConfigError(`"localDevOrigins" entry must be an origin: ${o}`);
   }
 
+  const rawIps = parseMaybeJson(node.tryGetContext('allowedIpCidrs')) ?? [];
+  if (!Array.isArray(rawIps) || rawIps.some((v) => typeof v !== 'string')) {
+    throw new ConfigError('"allowedIpCidrs" must be an array of IPv4 addresses/CIDRs');
+  }
+  const allowedIpCidrs = (rawIps as string[]).map(normaliseIpv4Cidr);
+
   const rawReserved = parseMaybeJson(node.tryGetContext('reservedConcurrency'));
   const reservedConcurrency =
     rawReserved === undefined || rawReserved === null || rawReserved === ''
@@ -229,9 +241,23 @@ export function loadConfig(node: ContextSource): AppConfig {
     cognitoDomainPrefix,
     okta,
     localDevOrigins,
+    allowedIpCidrs,
     reservedConcurrency,
     apiCodeStub,
   };
+}
+
+/** "1.2.3.4" → "1.2.3.4/32"; validates octets and prefix length; rejects IPv6. */
+export function normaliseIpv4Cidr(raw: string): string {
+  const v = raw.trim();
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?:\/(\d{1,2}))?$/.exec(v);
+  if (!m) throw new ConfigError(`"allowedIpCidrs" entry is not an IPv4 address/CIDR: ${raw}`);
+  const octets = m.slice(1, 5).map(Number);
+  const bits = m[5] === undefined ? 32 : Number(m[5]);
+  if (octets.some((o) => o > 255) || bits > 32) {
+    throw new ConfigError(`"allowedIpCidrs" entry is out of range: ${raw}`);
+  }
+  return `${octets.join('.')}/${bits}`;
 }
 
 /** Returns the config keys that still hold placeholder values. */

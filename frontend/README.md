@@ -16,6 +16,8 @@ npm run build      # typecheck + production build → dist/ (deployed by the Pmb
 
 ## Local development
 
+For a fully local stack (no AWS, auto sign-in), use `npm run dev:local` via `../scripts/dev-local.sh` — see `../docs/local-dev.md`. The steps below are for running against the **deployed** backend.
+
 1. **Runtime config.** The app loads `/config.json` at startup (ADR-010). In production the
    CDK stack writes it; locally create it from the example (the real file is git-ignored and is
    removed from `dist/` on build):

@@ -10,7 +10,7 @@ Funding: AWS credits ($100 signup + up to $100 activities). **Free tier ≠ cred
 | S3 Vectors storage + queries | credits | < $1 |
 | Secrets Manager (Okta secret) | credits | $0.40 |
 | AWS Budgets (1 budget) | free | $0 |
-| WAF (phase 2, optional) | credits | ~$6–8 |
+| IP allowlist (CloudFront Functions, ADR-012) | free tier (2M invocations/mo) | ~$0 |
 | **LLM: Claude Sonnet 5.5** (~2,200 q/mo × ~8k in / ~1k out) | ⚠️ Marketplace — may NOT be covered by credits | ~$15–60 |
 | JA→EN query rewrite for Japanese questions (~200 tokens each) | same as LLM | ~$1–3 |
 | **Total** | | **~$20–80** |

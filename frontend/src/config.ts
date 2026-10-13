@@ -5,6 +5,11 @@ export interface AppConfig {
   clientId: string;
   /** Cognito managed login domain host, e.g. `my-prefix.auth.ap-northeast-1.amazoncognito.com`. */
   cognitoDomain: string;
+  /**
+   * Local dev only (`npm run dev:local`, docs/local-dev.md): sign in via the local api server
+   * instead of Cognito. Ignored in production builds (`import.meta.env.DEV` is false there).
+   */
+  localDev?: boolean;
 }
 
 const REQUIRED_KEYS: (keyof AppConfig)[] = ['region', 'userPoolId', 'clientId', 'cognitoDomain'];
@@ -29,6 +34,7 @@ export function parseConfig(raw: unknown): AppConfig {
       .trim()
       .replace(/^https?:\/\//, '')
       .replace(/\/+$/, ''),
+    ...(import.meta.env.DEV && obj.localDev === true ? { localDev: true } : {}),
   };
 }
 

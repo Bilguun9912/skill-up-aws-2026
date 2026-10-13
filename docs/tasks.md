@@ -11,7 +11,7 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⛔ blocked. Agents: report r
 | H4 | Obtain PMBOK 6th & 7th edition PDFs (licensed copies) → `pmbok-source/` (git-ignored) | ☐ |
 | H5 | `npx cdk bootstrap` + `npx cdk deploy --all` (first deploy can run without Okta) | ☐ |
 | H6 | Run `scripts/upload-pmbok.sh` to upload PDFs + metadata and start KB ingestion | ☐ |
-| H7 | Confirm security policy: is "no VPC" acceptable at Asia Quest? Office/VPN IP ranges for optional WAF? | ☐ |
+| H7 | Confirm security policy: is "no VPC" acceptable at the company? Company egress IPs → GitHub variable `ALLOWED_IP_CIDRS` (never commit them — repo is public) | ◐ |
 
 ## Phase 1 — build (agents)
 | # | Task | Owner | Depends | Status |
@@ -27,7 +27,7 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⛔ blocked. Agents: report r
 | # | Task | Status |
 |---|---|---|
 | P2-1 | User doc uploads (presign route, uploads prefix, metadata `ownerSub`, ingestion trigger Lambda on S3 event, retrieval OR filter) | ☐ |
-| P2-2 | WAF in us-east-1 (rate limit + IP allowlist) | ☐ |
+| P2-2 | IP allowlist — done with CloudFront Functions (ADR-012); WAF only if rate limiting is needed | ☑ |
 | P2-3 | Prompt tuning with a small eval set of real PM questions | ☐ |
 | P2-4 | Model A/B: Sonnet 5.5 vs Haiku 4.5 vs Nova | ☐ |
 | P2-5 | Frontend: optional `identityProvider` in config.json to skip Cognito page and go straight to Okta | ☐ |
@@ -37,3 +37,8 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⛔ blocked. Agents: report r
 |---|---|---|
 | C1 | GitHub Actions: CI (tests ×3 + synth) and Deploy (OIDC role, `cdk deploy --all`, smoke test) — see `docs/cicd.md` | ☑ |
 | C2 | Owner: bootstrap, deploy `Pmbok-GithubOidc`, create `dev` environment + variables (docs/cicd.md "One-time setup") | ☐ |
+
+## Local dev
+| # | Task | Status |
+|---|---|---|
+| L1 | Local mode: `./scripts/dev-local.sh` (DynamoDB Local + local api server + Vite; fake or real Bedrock) — see `docs/local-dev.md` | ☑ |

@@ -32,6 +32,12 @@ jobs:
       - run: npm test
       - if: matrix.package == 'frontend'
         run: npm run build
+      - if: matrix.package == 'frontend'
+        name: Local-dev auth must not ship in the production bundle
+        run: |
+          if grep -l 'local/token' dist/assets/*.js; then
+            echo "::error::local dev sign-in code found in dist/ (docs/local-dev.md)"; exit 1
+          fi
 
   synth:
     name: cdk synth

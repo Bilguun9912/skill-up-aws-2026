@@ -21,7 +21,10 @@ push main ─▶ CI (test ×3, synth) ─▶ deploy job (environment "dev")
 - The role's only permissions are to assume the CDK bootstrap roles (`deploy`, `file-publishing`, `image-publishing`, `lookup`, matched by their `aws-cdk:bootstrap-role` tag) and to read `Pmbok-*` stack outputs.
 - `strictConfig=true` makes synth fail if any `CHANGE-ME` placeholder is left, so a half-configured app can't be deployed.
 - `concurrency: deploy-dev` stops two deploys from running at the same time.
-- Optional: add **required reviewers** to the `dev` environment (GitHub → Settings → Environments) so every deploy waits for a manual approval.
+- **The repo is public**, so lock down the `dev` environment (GitHub → Settings → Environments → dev):
+  - *Deployment branches and tags* → **Selected branches: `main`** only.
+  - *Required reviewers* → yourself, so every deploy waits for your approval (recommended).
+- **IP allowlist:** the site is reachable only from company IPs (ADR-012). The GitHub runner is outside that network, so the smoke test checks that both `/` and `/api/me` return the allowlist 403. Run the full smoke test from the office or VPN (deploy.md §7).
 
 ## One-time setup (owner, from a laptop with admin credentials)
 
@@ -48,6 +51,7 @@ push main ─▶ CI (test ×3, synth) ─▶ deploy job (environment "dev")
    | `BEDROCK_MODEL_ID` | ✅ | inference profile id from `aws bedrock list-inference-profiles --region ap-northeast-1` |
    | `BUDGET_EMAIL` | ✅ | `you@example.com` |
    | `COGNITO_DOMAIN_PREFIX` | ✅ | `pmbok-assistant-<something-unique>` |
+   | `ALLOWED_IP_CIDRS` | ✅ | company egress IPs, comma-separated or JSON array, e.g. `198.51.100.10, 203.0.113.0/24`. **Never commit these** (public repo). |
    | `AWS_REGION` | – | defaults to `ap-northeast-1` |
    | `QUERY_REWRITE_MODEL_ID` | – | cheaper model for the JA→EN search-query rewrite |
    | `OKTA_CONFIG` | – | `{"issuerUrl":"https://<org>.okta.com","clientId":"...","clientSecretName":"pmbok/okta-client-secret"}`. The secret value itself stays in Secrets Manager. |
@@ -56,7 +60,16 @@ push main ─▶ CI (test ×3, synth) ─▶ deploy job (environment "dev")
 5. Push to `main`, or run **Actions → Deploy → Run workflow**.
 
 ## Local deploys still work
-For local deploys, set the values in `infra/cdk.json` (don't commit them) or pass them with `-c`. Then run `npx cdk deploy --all`. Local and CI deploys target the same stacks, so use one or the other.
+Put your private values in **`~/.cdk.json`** (your home directory, never in the repo). CDK merges its `context` into every app:
+```json
+{ "context": {
+  "modelId": "<inference profile id>",
+  "budget": { "monthlyLimitUsd": 100, "alertThresholdsUsd": [10, 30, 60], "email": "you@example.com" },
+  "cognitoDomainPrefix": "pmbok-assistant-<unique>",
+  "allowedIpCidrs": ["<company ip 1>", "<company ip 2>"]
+} }
+```
+Then run `npx cdk deploy --all -c strictConfig=true`. Without `allowedIpCidrs`, a local deploy would remove the IP restriction. Local and CI deploys target the same stacks, so keep both sets of values the same.
 
 ## Troubleshooting
 | Symptom | Likely cause |

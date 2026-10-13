@@ -57,3 +57,12 @@ Lambda caches the SSM value per container.
 ## ADR-011 Cost guardrails in code
 **Decision:** per-user daily question limit (default 30), `maxTokens` cap on generation, last-N history only, AWS Budget alerts.
 Lambda **reserved concurrency is optional** (default off): new accounts often have an account concurrency limit of 10, and AWS requires 10 unreserved, so reserving would fail.
+
+## ADR-012 IP allowlist with CloudFront Functions (not WAF)
+**Decision:** a viewer-request CloudFront Function on both behaviors (default + `/api/*`) returns 403 unless the viewer IPv4 is in `allowedIpCidrs`. IPv6 is disabled on the distribution while the allowlist is active.
+**Why:** ~10 internal users on fixed company egress IPs (office/FortiClient VPN, AWS VPN, Cloudflare WARP). The function is effectively free (inside the 2M invocations/month free tier). WAF would cost ~$7/mo and need a us-east-1 stack.
+**Can't be bypassed:** the Function URL is `AWS_IAM` (CloudFront OAC only), and the site bucket is OAC-only.
+**Not covered:** the Cognito managed-login and Okta pages are separate domains. Users outside the allowlist can reach the login page but not the app or API.
+**Secrecy:** the repo is public, so the IPs are never committed. Set them in GitHub variable `ALLOWED_IP_CIDRS` or `~/.cdk.json` for local deploys.
+CI (`strictConfig`) refuses to deploy with an empty list unless `-c allowPublicAccess=true` is passed.
+**Revisit if:** we need rate limiting or bot rules → WAF.

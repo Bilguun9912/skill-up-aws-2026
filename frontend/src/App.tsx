@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from 'react-oidc-context';
 import type { UserManager } from 'oidc-client-ts';
 import { ApiError, createApiClient } from './api/client';
 import { createUserManager, onSigninCallback, signOut } from './auth/oidc';
+import { LocalDevApp } from './auth/LocalDevApp';
 import { loadConfig, type AppConfig } from './config';
 import { ChatApp } from './components/ChatApp';
 import { LoginScreen } from './components/LoginScreen';
@@ -33,6 +34,9 @@ export function App() {
         </p>
       </div>
     );
+  }
+  if (cfg && import.meta.env.DEV && cfg.localDev) {
+    return <LocalDevApp />;
   }
   if (!cfg || !userManager) {
     return <div className="fullscreen muted">{t.loading}</div>;
