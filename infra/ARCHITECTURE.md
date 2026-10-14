@@ -5,6 +5,13 @@ Design rationale lives in [`../docs/decisions.md`](../docs/decisions.md). The ov
 
 > Public repo: this file contains no account IDs, IPs or emails. Those come from `cdk.local.json` / GitHub variables.
 
+## AWS architecture (AWS icons)
+
+![AWS architecture](architecture.png)
+
+Source: [`architecture.drawio`](architecture.drawio). Open it in draw.io (desktop, the VS Code extension, or app.diagrams.net), which uses
+the official AWS Architecture Icons (`aws4` library). After editing, re-export `architecture.png` (File → Export as → PNG, 2× scale).
+
 ## 1. Resources by stack
 
 ```mermaid
