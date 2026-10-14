@@ -5,6 +5,13 @@ import { Construct } from 'constructs';
 export interface GithubOidcStackProps extends StackProps {
   /** "owner/repo" */
   githubRepo: string;
+  /**
+   * Numeric owner / repo ids, for GitHub's immutable OIDC subject
+   * (`repo:owner@<ownerId>/repo@<repoId>:...`), used by repos with `use_immutable_subject`.
+   * Public values: GET https://api.github.com/repos/<owner>/<repo> → owner.id / id.
+   */
+  githubOwnerId?: string;
+  githubRepoId?: string;
   /** GitHub Actions environment the deploy job runs in (trust is scoped to it). */
   githubEnvironment: string;
   /**
@@ -15,6 +22,16 @@ export interface GithubOidcStackProps extends StackProps {
 }
 
 const GITHUB_OIDC_HOST = 'token.actions.githubusercontent.com';
+
+/** OIDC `sub` values for jobs in the given environment (classic + immutable formats). */
+export function githubSubjects(p: Pick<GithubOidcStackProps, 'githubRepo' | 'githubEnvironment' | 'githubOwnerId' | 'githubRepoId'>): string[] {
+  const subs = [`repo:${p.githubRepo}:environment:${p.githubEnvironment}`];
+  if (p.githubOwnerId && p.githubRepoId) {
+    const [owner, repo] = p.githubRepo.split('/');
+    subs.push(`repo:${owner}@${p.githubOwnerId}/${repo}@${p.githubRepoId}:environment:${p.githubEnvironment}`);
+  }
+  return subs;
+}
 
 /**
  * Lets GitHub Actions deploy with short-lived credentials (no access keys).
@@ -41,7 +58,8 @@ export class GithubOidcStack extends Stack {
       assumedBy: new iam.WebIdentityPrincipal(providerArn, {
         StringEquals: {
           [`${GITHUB_OIDC_HOST}:aud`]: 'sts.amazonaws.com',
-          [`${GITHUB_OIDC_HOST}:sub`]: `repo:${props.githubRepo}:environment:${props.githubEnvironment}`,
+          // StringEquals with a list = any of. Trust both the classic and the immutable subject format.
+          [`${GITHUB_OIDC_HOST}:sub`]: githubSubjects(props),
         },
       }),
     });

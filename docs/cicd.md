@@ -71,7 +71,7 @@ Then run `npx cdk deploy --all -c strictConfig=true`. Without `allowedIpCidrs`, 
 ## Troubleshooting
 | Symptom | Likely cause |
 |---|---|
-| `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Job not running in environment `dev`, repo name mismatch, or `AWS_DEPLOY_ROLE_ARN` wrong |
+| `Not authorized to perform sts:AssumeRoleWithWebIdentity` | The token's `sub` doesn't match the trust policy. Check `curl https://api.github.com/repos/<owner>/<repo>/actions/oidc/customization/sub`: with `use_immutable_subject: true` the sub is `repo:<owner>@<ownerId>/<repo>@<repoId>:environment:dev`. The role trusts both formats when `githubOwnerId`/`githubRepoId` are set (defaults in `bin/app.ts`), so redeploy `Pmbok-GithubOidc`. Other causes: the job isn't in environment `dev`, or `AWS_DEPLOY_ROLE_ARN` is wrong |
 | `... is not authorized to perform: sts:AssumeRole on resource: cdk-hnb659fds-...` | CDK not bootstrapped in this region, or old bootstrap version without role tags → re-run `cdk bootstrap` |
 | Synth error `Config still has placeholder values` | A required GitHub variable is missing |
 | Smoke test: `/api/me` returned 403 | CloudFront OAC → Function URL permission problem (see deploy.md troubleshooting) |

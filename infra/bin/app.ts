@@ -19,6 +19,9 @@ if (String(app.node.tryGetContext('githubOidc')) === 'true') {
     description: 'PMBOK Assistant: GitHub Actions OIDC deploy role',
     githubRepo: app.node.tryGetContext('githubRepo') ?? 'Bilguun9912/skill-up-aws-2026',
     githubEnvironment: app.node.tryGetContext('githubEnvironment') ?? 'dev',
+    // Public ids (GitHub API) for the immutable OIDC subject this repo uses.
+    githubOwnerId: String(app.node.tryGetContext('githubOwnerId') ?? '119554237'),
+    githubRepoId: String(app.node.tryGetContext('githubRepoId') ?? '1406568129'),
     createOidcProvider: String(app.node.tryGetContext('createOidcProvider') ?? 'true') === 'true',
   });
 }

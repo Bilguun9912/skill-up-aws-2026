@@ -9,6 +9,8 @@ function synth(createOidcProvider: boolean) {
     env: { account: '123456789012', region: 'ap-northeast-1' },
     githubRepo: 'owner/repo',
     githubEnvironment: 'dev',
+    githubOwnerId: '111',
+    githubRepoId: '222',
     createOidcProvider,
   });
   return Template.fromStack(stack);
@@ -26,7 +28,10 @@ describe('GithubOidcStack', () => {
             Condition: {
               StringEquals: {
                 'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
-                'token.actions.githubusercontent.com:sub': 'repo:owner/repo:environment:dev',
+                'token.actions.githubusercontent.com:sub': [
+                  'repo:owner/repo:environment:dev',
+                  'repo:owner@111/repo@222:environment:dev',
+                ],
               },
             },
           }),
