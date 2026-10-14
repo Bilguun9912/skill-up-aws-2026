@@ -103,6 +103,7 @@ be developed in parallel without lockfile conflicts. `infra` bundles `backend/sr
 
 ## Related docs
 
+- [../infra/ARCHITECTURE.md](../infra/ARCHITECTURE.md) — infrastructure diagrams (Mermaid): resources by stack, chat flow, dependencies
 - [decisions.md](decisions.md) — ADRs (why each choice)
 - [api.md](api.md) — HTTP API contract + DynamoDB schema
 - [security.md](security.md) — threat model & controls

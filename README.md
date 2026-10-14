@@ -13,7 +13,7 @@ Okta login · streaming chat · chat history · PMBOK citations. Serverless on A
 ## Packages
 | Dir | What |
 |---|---|
-| `infra/` | CDK app (TypeScript) |
+| `infra/` | CDK app (TypeScript) — diagrams in [infra/ARCHITECTURE.md](infra/ARCHITECTURE.md) |
 | `backend/` | api Lambda (TypeScript, Node 22) |
 | `frontend/` | React SPA (Vite) |
 | `scripts/` | ops helpers (PMBOK upload + KB ingestion) |
