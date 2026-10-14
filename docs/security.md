@@ -7,7 +7,7 @@ Internal POC, ~10 users, no VPC (see ADR-001). Security comes from identity, IAM
 | Threat | Controls |
 |---|---|
 | **Denial of wallet** (LLM spend abuse) — top risk | Okta/Cognito auth on every API call · Function URL `AWS_IAM` + CloudFront OAC (no direct calls) · per-user daily quota (DynamoDB) · `maxTokens` cap · message length ≤ 4000 chars · history limited to last N turns · AWS Budgets alerts · optional Lambda reserved concurrency |
-| Unauthorized access | Cognito self sign-up **disabled**; only Okta-assigned users (or admin-created Cognito users) can log in · JWT verified (signature, `token_use=access`, `client_id`, expiry) with `aws-jwt-verify` |
+| Unauthorized access | Self sign-up only for the company email domain (pre sign-up trigger + emailed verification code, ADR-014), otherwise disabled; Okta-assigned or admin-created users · JWT verified (signature, `token_use=access`, `client_id`, expiry) with `aws-jwt-verify` |
 | Cross-user data access | All DynamoDB keys built from verified `sub`; never trust ids from the client alone. Phase 2: S3 upload keys prefixed `uploads/<sub>/`, KB retrieval filtered by `ownerSub` |
 | Access from outside the company | **IP allowlist** (ADR-012): CloudFront Function on site + `/api/*` returns 403 except company egress IPs (office/FortiClient VPN, AWS VPN, Cloudflare WARP). IPv6 off. Can't be bypassed (Function URL IAM-only, bucket OAC-only) |
 | DDoS / bots | CloudFront + Shield Standard (free) + IP allowlist. WAF (rate limits) only if needed later |

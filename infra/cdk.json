@@ -41,6 +41,7 @@
       "http://localhost:5173"
     ],
     "allowedIpCidrs": [],
+    "allowedEmailDomains": [],
     "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,
     "@aws-cdk/aws-ecs-patterns:secGroupsDisablesImplicitOpenListener": true,
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,

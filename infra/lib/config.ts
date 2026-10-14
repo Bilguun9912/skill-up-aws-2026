@@ -58,6 +58,11 @@ export interface AppConfig {
    * `-c allowedIpCidrs='[...]'`, or infra/cdk.local.json. Normalised to CIDR (bare IP → /32).
    */
   allowedIpCidrs: string[];
+  /**
+   * Email domains allowed to self sign up (e.g. ["example.co.jp"]). Empty = self sign-up off
+   * (admin-created / Okta users only). Keep the real domain out of the public repo.
+   */
+  allowedEmailDomains: string[];
   reservedConcurrency?: number;
   /**
    * Use an inline stub instead of bundling ../backend (tests, or when backend
@@ -215,6 +220,18 @@ export function loadConfig(node: ContextSource): AppConfig {
   }
   const allowedIpCidrs = (rawIps as string[]).map(normaliseIpv4Cidr);
 
+  const rawDomains = parseMaybeJson(node.tryGetContext('allowedEmailDomains')) ?? [];
+  if (!Array.isArray(rawDomains) || rawDomains.some((v) => typeof v !== 'string')) {
+    throw new ConfigError('"allowedEmailDomains" must be an array of domain names');
+  }
+  const allowedEmailDomains = (rawDomains as string[]).map((d) => {
+    const v = d.trim().toLowerCase().replace(/^@/, '');
+    if (!/^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(v)) {
+      throw new ConfigError(`"allowedEmailDomains" entry is not a domain: ${d}`);
+    }
+    return v;
+  });
+
   const rawReserved = parseMaybeJson(node.tryGetContext('reservedConcurrency'));
   const reservedConcurrency =
     rawReserved === undefined || rawReserved === null || rawReserved === ''
@@ -242,6 +259,7 @@ export function loadConfig(node: ContextSource): AppConfig {
     okta,
     localDevOrigins,
     allowedIpCidrs,
+    allowedEmailDomains,
     reservedConcurrency,
     apiCodeStub,
   };

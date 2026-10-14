@@ -2,6 +2,8 @@ export const en = {
   appName: 'PMBOK Assistant',
   tagline: 'Practical project-management guidance grounded in the PMBOK® Guide (6th & 7th editions).',
   signIn: 'Sign in',
+  signUpHint: (domains: string) =>
+    `First time? Click Sign in, then “Create an account” with your ${domains} email. You'll get a verification code by email.`,
   signOut: 'Sign out',
   signingIn: 'Signing in…',
   loading: 'Loading…',

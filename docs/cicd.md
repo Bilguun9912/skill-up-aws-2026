@@ -43,19 +43,22 @@ push main ─▶ CI (test ×3, synth) ─▶ deploy job (environment "dev")
    This stack is **not** part of `--all`, so CI never changes its own role. To remove it later:
    `npx cdk destroy Pmbok-GithubOidc -c githubOidc=true`.
 3. **GitHub → Settings → Environments → New environment `dev`.**
-4. **GitHub → Settings → Secrets and variables → Actions → Variables.** None of these are secrets. You can set them at repo level or on the `dev` environment:
+4. **GitHub → Settings → Secrets and variables → Actions.** The repo is **public**, so Actions logs are readable by anyone, and step `env:` values are printed in them. Put anything private in **Secrets** (masked as `***`). Only harmless values go in **Variables**.
 
-   | Variable | Required | Example |
-   |---|---|---|
-   | `AWS_DEPLOY_ROLE_ARN` | ✅ | `arn:aws:iam::123456789012:role/Pmbok-GithubOidc-GithubDeployRole...` |
-   | `BEDROCK_MODEL_ID` | ✅ | inference profile id from `aws bedrock list-inference-profiles --region ap-northeast-1` |
-   | `BUDGET_EMAIL` | ✅ | `you@example.com` |
-   | `COGNITO_DOMAIN_PREFIX` | ✅ | `pmbok-assistant-<something-unique>` |
-   | `ALLOWED_IP_CIDRS` | ✅ | company egress IPs, comma-separated or JSON array, e.g. `198.51.100.10, 203.0.113.0/24`. **Never commit these** (public repo). |
-   | `AWS_REGION` | – | defaults to `ap-northeast-1` |
-   | `QUERY_REWRITE_MODEL_ID` | – | model for the JA→EN search-query rewrite (default: `BEDROCK_MODEL_ID`) |
-   | `OKTA_CONFIG` | – | `{"issuerUrl":"https://<org>.okta.com","clientId":"...","clientSecretName":"pmbok/okta-client-secret"}`. The secret value itself stays in Secrets Manager. |
+   | Name | Type | Required | Example |
+   |---|---|---|---|
+   | `AWS_DEPLOY_ROLE_ARN` | **Secret** (contains the account id) | ✅ | output `GithubDeployRoleArn` of `Pmbok-GithubOidc` |
+   | `BUDGET_EMAIL` | **Secret** | ✅ | `you@example.com` |
+   | `ALLOWED_IP_CIDRS` | **Secret** | ✅ | `198.51.100.10, 203.0.113.0/24`. **Never commit these** |
+   | `ALLOWED_EMAIL_DOMAINS` | **Secret** | – | `example.co.jp` (self sign-up, ADR-014) |
+   | `OKTA_CONFIG` | **Secret** | – | `{"issuerUrl":"https://<org>.okta.com","clientId":"...","clientSecretName":"pmbok/okta-client-secret"}` |
+   | `BEDROCK_MODEL_ID` | Variable | ✅ | `jp.amazon.nova-2-lite-v1:0` |
+   | `COGNITO_DOMAIN_PREFIX` | Variable | ✅ | `pmbok-assistant-<unique>` (public anyway: it's in the login URL) |
+   | `QUERY_REWRITE_MODEL_ID` | Variable | – | defaults to `BEDROCK_MODEL_ID` |
+   | `AWS_REGION` | Variable | – | defaults to `ap-northeast-1` |
 
+   You can define them on the repo or on the `dev` environment (Settings → Environments → dev); the deploy job sees both.
+   **Use the same values as your local `infra/cdk.local.json`**, especially `COGNITO_DOMAIN_PREFIX`, or local and CI deploys will fight.
    These values are written into `infra/cdk.json` **inside the CI runner only**. The committed `cdk.json` keeps its placeholders, so your email isn't in the repo.
 5. Push to `main`, or run **Actions → Deploy → Run workflow**.
 

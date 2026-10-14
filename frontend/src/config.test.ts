@@ -37,3 +37,11 @@ describe('identityProvider', () => {
     expect(buildOidcSettings(parseConfig(base)).extraQueryParams).toBeUndefined();
   });
 });
+
+describe('signUpDomains', () => {
+  it('passes through a string array, ignores anything else', () => {
+    expect(parseConfig({ ...base, signUpDomains: ['example.co.jp'] }).signUpDomains).toEqual(['example.co.jp']);
+    expect(parseConfig({ ...base, signUpDomains: 'example.co.jp' }).signUpDomains).toBeUndefined();
+    expect(parseConfig({ ...base, signUpDomains: [] }).signUpDomains).toBeUndefined();
+  });
+});

@@ -53,14 +53,16 @@ jobs:
         env:
           MODEL_ID: ${{ vars.BEDROCK_MODEL_ID }}
           QUERY_REWRITE_MODEL_ID: ${{ vars.QUERY_REWRITE_MODEL_ID }}
-          BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
+          # Public repo → step env is visible in Actions logs. Sensitive values come from *secrets* (masked as ***).
+          BUDGET_EMAIL: ${{ secrets.BUDGET_EMAIL }}
           COGNITO_DOMAIN_PREFIX: ${{ vars.COGNITO_DOMAIN_PREFIX }}
-          OKTA_CONFIG: ${{ vars.OKTA_CONFIG }}
-          ALLOWED_IP_CIDRS: ${{ vars.ALLOWED_IP_CIDRS }}
+          OKTA_CONFIG: ${{ secrets.OKTA_CONFIG }}
+          ALLOWED_IP_CIDRS: ${{ secrets.ALLOWED_IP_CIDRS }}
+          ALLOWED_EMAIL_DOMAINS: ${{ secrets.ALLOWED_EMAIL_DOMAINS }}
         run: |
           set -euo pipefail
           for v in MODEL_ID BUDGET_EMAIL COGNITO_DOMAIN_PREFIX; do
-            if [ -z "${!v}" ]; then echo "::error::GitHub variable for $v is not set (see docs/cicd.md)"; exit 1; fi
+            if [ -z "${!v}" ]; then echo "::error::GitHub variable/secret for $v is not set (see docs/cicd.md)"; exit 1; fi
           done
           jq --arg region "$AWS_REGION" --arg model "$MODEL_ID" --arg email "$BUDGET_EMAIL" --arg prefix "$COGNITO_DOMAIN_PREFIX" \
             '.context.region=$region | .context.modelId=$model | .context.budget.email=$email | .context.cognitoDomainPrefix=$prefix' \
@@ -83,11 +85,18 @@ jobs:
             jq --argjson ips "$ips" '.context.allowedIpCidrs=$ips' cdk.json > cdk.tmp.json && mv cdk.tmp.json cdk.json
             echo "IP allowlist: $(echo "$ips" | jq 'length') entries"
           fi
+          if [ -n "$ALLOWED_EMAIL_DOMAINS" ]; then
+            # Comma/space-separated, e.g. "example.co.jp" → self sign-up for those domains (ADR-014).
+            doms=$(printf '%s' "$ALLOWED_EMAIL_DOMAINS" | tr ', ' '\n\n' | sed '/^$/d' | jq -R . | jq -sc .)
+            jq --argjson d "$doms" '.context.allowedEmailDomains=$d' cdk.json > cdk.tmp.json && mv cdk.tmp.json cdk.json
+            echo "Self sign-up domains: $(echo "$doms" | jq 'length')"
+          fi
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }} # contains the account id → secret
           aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
 
       - name: cdk deploy
         working-directory: infra

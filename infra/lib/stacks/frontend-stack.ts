@@ -181,6 +181,8 @@ export class FrontendStack extends Stack {
         cognitoDomain: props.cognitoDomainHost, // bare host, no scheme
         // With Okta configured, the SPA skips the Cognito page and goes straight to Okta.
         ...(props.oktaProvider ? { identityProvider: props.oktaProvider.providerName } : {}),
+        // Self sign-up hint on the login screen (ADR-014). Generated at deploy, never committed.
+        ...(config.allowedEmailDomains.length > 0 ? { signUpDomains: config.allowedEmailDomains } : {}),
       }),
     );
 

@@ -119,6 +119,7 @@ function AuthGate({ cfg, userManager }: { cfg: AppConfig; userManager: UserManag
       <LoginScreen
         onSignIn={() => void auth.signinRedirect()}
         error={auth.error?.message}
+        signUpDomains={cfg.signUpDomains}
       />
     );
   }

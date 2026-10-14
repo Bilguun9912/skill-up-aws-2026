@@ -2,5 +2,6 @@
   "modelId": "jp.amazon.nova-2-lite-v1:0",
   "budget": { "monthlyLimitUsd": 100, "alertThresholdsUsd": [10, 30, 60], "email": "you@example.com" },
   "cognitoDomainPrefix": "pmbok-assistant-<unique>",
+  "allowedEmailDomains": ["example.co.jp"],
   "allowedIpCidrs": ["198.51.100.10", "203.0.113.0/24"]
 }

@@ -4,6 +4,8 @@ export const ja: Dict = {
   appName: 'PMBOK アシスタント',
   tagline: 'PMBOK®ガイド（第6版・第7版）に基づいた、実践的なプロジェクトマネジメントの助言。',
   signIn: 'サインイン',
+  signUpHint: (domains: string) =>
+    `初めての方：「サインイン」→「Create an account」から ${domains} のメールアドレスで登録してください。確認コードがメールで届きます。`,
   signOut: 'サインアウト',
   signingIn: 'サインイン中…',
   loading: '読み込み中…',

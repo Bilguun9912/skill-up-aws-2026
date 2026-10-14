@@ -72,3 +72,13 @@ CI (`strictConfig`) refuses to deploy with an empty list unless `-c allowPublicA
 **Why:** the account is on the AWS **Free plan** (credits only). Claude on Bedrock is billed through AWS Marketplace, which credits and the Free plan may not cover. Nova is first-party and covered by credits. The `jp.` profile keeps inference in Japan.
 **Trade-off:** answers are less nuanced than Claude Sonnet 5.5's. Switching later is one config value (`modelId`) plus upgrading to the Paid plan. No code change is needed, because Converse is model-agnostic and Claude-only fields are sent only for `anthropic` ids.
 **Safety:** the prompt-cache point is best-effort. If a model rejects it, the call is retried once without it (backend `llm.ts`).
+
+## ADR-014 Self sign-up restricted to the company email domain (while Okta isn't available)
+**Decision:** with `allowedEmailDomains` set, the Cognito user pool allows self sign-up. A **pre sign-up Lambda trigger** rejects any email whose domain (the part after the last `@`) isn't an exact match, so subdomains and look-alikes like `x@corp.jp.evil.com` fail. Cognito then **emails a verification code** (`autoVerify: email`), and the account can't sign in until it's entered, which proves mailbox ownership. `keepOriginal: email` means an email change only applies after the new address is verified.
+Users also can't change attributes via the API, because the app client doesn't grant the `aws.cognito.signin.user.admin` scope.
+**Why:** Okta isn't available yet, and the owner wants colleagues to onboard themselves without admin help.
+**Defense in depth:** the IP allowlist (ADR-012), the per-user daily quota and Budgets still apply.
+**Admin-created and federated (Okta) users** bypass the domain check.
+**Config:** empty list = self sign-up off. The real domain lives only in `cdk.local.json` or the GitHub variable `ALLOWED_EMAIL_DOMAINS`. `config.json` gets `signUpDomains` so the login screen shows a hint.
+**Limits:** Cognito's default email sender allows ~50 emails/day, which is enough for ~10 users. Company mail filters may put the code email (from `no-reply@verificationemail.com`) in spam. If that becomes a problem, switch to SES.
+**When Okta arrives:** set `okta`. Sign-in then goes straight to Okta, and `allowedEmailDomains` can be emptied.

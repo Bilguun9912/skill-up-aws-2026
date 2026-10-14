@@ -12,6 +12,8 @@ export interface AppConfig {
   localDev?: boolean;
   /** Cognito identity provider to go straight to (e.g. "Okta"), skipping the Cognito login page. */
   identityProvider?: string;
+  /** Email domains allowed to self sign up (shown as a hint on the login screen). */
+  signUpDomains?: string[];
 }
 
 const REQUIRED_KEYS: (keyof AppConfig)[] = ['region', 'userPoolId', 'clientId', 'cognitoDomain'];
@@ -37,6 +39,9 @@ export function parseConfig(raw: unknown): AppConfig {
       .replace(/^https?:\/\//, '')
       .replace(/\/+$/, ''),
     ...(import.meta.env.DEV && obj.localDev === true ? { localDev: true } : {}),
+    ...(Array.isArray(obj.signUpDomains) && obj.signUpDomains.every((d) => typeof d === 'string') && obj.signUpDomains.length
+      ? { signUpDomains: obj.signUpDomains as string[] }
+      : {}),
     ...(typeof obj.identityProvider === 'string' && obj.identityProvider.trim()
       ? { identityProvider: obj.identityProvider.trim() }
       : {}),

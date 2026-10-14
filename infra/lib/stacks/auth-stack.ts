@@ -1,11 +1,35 @@
-import { CfnOutput, RemovalPolicy, SecretValue, Stack, StackProps } from 'aws-cdk-lib';
+import { CfnOutput, Duration, RemovalPolicy, SecretValue, Stack, StackProps } from 'aws-cdk-lib';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 import { AppConfig } from '../config';
 
 export interface AuthStackProps extends StackProps {
   config: AppConfig;
 }
+
+/**
+ * Pre sign-up trigger (ADR-014): only emails in ALLOWED_EMAIL_DOMAINS may self sign up.
+ * Exact domain match on the part after the last "@" (so "x@corp.jp.evil.com" and "x@sub.corp.jp" are rejected).
+ * Admin-created users and federated (Okta) users are allowed through. Cognito then sends an email
+ * verification code, so a user can't register a colleague's address without access to that mailbox.
+ */
+export const PRE_SIGN_UP_CODE = `
+const ALLOWED = (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
+exports.handler = async (event) => {
+  if (event.triggerSource === 'PreSignUp_AdminCreateUser' || event.triggerSource === 'PreSignUp_ExternalProvider') {
+    return event;
+  }
+  const email = String((event.request.userAttributes || {}).email || '').trim().toLowerCase();
+  const at = email.lastIndexOf('@');
+  const domain = at > 0 ? email.slice(at + 1) : '';
+  if (!domain || ALLOWED.indexOf(domain) === -1) {
+    throw new Error('Sign-up is limited to company email addresses. / 会社のメールアドレスでのみ登録できます。');
+  }
+  return event; // no auto-confirm: the user must enter the emailed verification code
+};
+`;
 
 /**
  * Cognito User Pool + managed login domain + optional Okta OIDC IdP.
@@ -24,9 +48,14 @@ export class AuthStack extends Stack {
     super(scope, id, props);
     const { config } = props;
 
+    const selfSignUp = config.allowedEmailDomains.length > 0;
     this.userPool = new cognito.UserPool(this, 'UserPool', {
-      selfSignUpEnabled: false,
+      // Self sign-up only when restricted to company domains (pre sign-up trigger below).
+      selfSignUpEnabled: selfSignUp,
       signInAliases: { email: true },
+      autoVerify: { email: true },
+      // An email change only takes effect after the new address is verified.
+      keepOriginal: { email: true },
       standardAttributes: { email: { required: true, mutable: true } },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       featurePlan: cognito.FeaturePlan.ESSENTIALS,
@@ -40,6 +69,24 @@ export class AuthStack extends Stack {
       deletionProtection: false,
       removalPolicy: RemovalPolicy.DESTROY,
     });
+
+    if (selfSignUp) {
+      const preSignUp = new lambda.Function(this, 'PreSignUpDomainCheck', {
+        description: 'Cognito pre sign-up: allow only company email domains',
+        runtime: lambda.Runtime.NODEJS_22_X,
+        architecture: lambda.Architecture.ARM_64,
+        handler: 'index.handler',
+        code: lambda.Code.fromInline(PRE_SIGN_UP_CODE),
+        timeout: Duration.seconds(5),
+        memorySize: 128,
+        environment: { ALLOWED_EMAIL_DOMAINS: config.allowedEmailDomains.join(',') },
+        logGroup: new logs.LogGroup(this, 'PreSignUpLogs', {
+          retention: logs.RetentionDays.ONE_MONTH,
+          removalPolicy: RemovalPolicy.DESTROY,
+        }),
+      });
+      this.userPool.addTrigger(cognito.UserPoolOperation.PRE_SIGN_UP, preSignUp);
+    }
 
     this.domain = this.userPool.addDomain('Domain', {
       cognitoDomain: { domainPrefix: config.cognitoDomainPrefix },

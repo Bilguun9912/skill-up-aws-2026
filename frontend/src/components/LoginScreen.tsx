@@ -3,11 +3,13 @@ import { LangToggle } from './LangToggle';
 
 interface Props {
   onSignIn: () => void;
+  /** Self sign-up domains (config.json); shows how to create an account. */
+  signUpDomains?: string[];
   busy?: boolean;
   error?: string;
 }
 
-export function LoginScreen({ onSignIn, busy, error }: Props) {
+export function LoginScreen({ onSignIn, signUpDomains, busy, error }: Props) {
   const { t } = useI18n();
   return (
     <div className="login">
@@ -28,6 +30,9 @@ export function LoginScreen({ onSignIn, busy, error }: Props) {
         <button type="button" className="btn btn-primary btn-lg" onClick={onSignIn} disabled={busy}>
           {busy ? t.signingIn : t.signIn}
         </button>
+        {signUpDomains && signUpDomains.length > 0 && (
+          <p className="muted login-hint">{t.signUpHint(signUpDomains.map((d) => `@${d}`).join(' / '))}</p>
+        )}
       </div>
     </div>
   );

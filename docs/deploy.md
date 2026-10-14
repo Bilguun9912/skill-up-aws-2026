@@ -43,6 +43,7 @@ Keys:
 | `budget.monthlyLimitUsd` / `alertThresholdsUsd` | default 100 / [10, 30, 60] |
 | `cognitoDomainPrefix` | globally unique, lowercase, no `aws`/`amazon`/`cognito`, e.g. `pmbok-assistant-<account-id>` |
 | `owner` | value for the `owner` tag |
+| `allowedEmailDomains` | company email domain(s) for self sign-up, e.g. `["example.co.jp"]` (ADR-014). Empty = admin-created/Okta users only |
 | `allowedIpCidrs` | company egress IPv4 addresses/CIDRs (ADR-012). Empty = open to the internet: synth warns, and `strictConfig` refuses to deploy |
 | `okta` | leave **absent** for the first deploy (see step 5) |
 | `reservedConcurrency` | leave absent (ADR-011) |
