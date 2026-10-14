@@ -40,7 +40,7 @@ Lambda caches the SSM value per container.
 **Consequences (important):**
 - OAC uses the `Authorization` header for SigV4 → our JWT goes in **`x-auth-token`**, never `Authorization`.
 - For requests with a body (POST/PUT), the **client must send `x-amz-content-sha256`** = hex SHA-256 of the body, or the signature fails.
-- Origin request policy must forward `x-auth-token`, `x-amz-content-sha256`, `content-type`, query strings — but **not** the viewer `Host`/`Authorization` header (use `AllViewerExceptHostHeader` or a custom policy). Caching disabled for `/api/*`.
+- Origin request policy = managed **`AllViewerExceptHostHeader`**. A custom allow-list is **not possible**: CloudFront rejects `x-amz-*` headers in origin request policies (deploy error "Headers contains x-amz-content-sha256 that is not allowed"). OAC overwrites `Authorization` with its SigV4 signature. Caching disabled for `/api/*`.
 
 ## ADR-008 One api Lambda with an internal router
 **Decision:** one function handles all `/api/*` routes (streaming mode for all; non-chat routes just write JSON).
@@ -63,6 +63,12 @@ Lambda **reserved concurrency is optional** (default off): new accounts often ha
 **Why:** ~10 internal users on fixed company egress IPs (office/FortiClient VPN, AWS VPN, Cloudflare WARP). The function is effectively free (inside the 2M invocations/month free tier). WAF would cost ~$7/mo and need a us-east-1 stack.
 **Can't be bypassed:** the Function URL is `AWS_IAM` (CloudFront OAC only), and the site bucket is OAC-only.
 **Not covered:** the Cognito managed-login and Okta pages are separate domains. Users outside the allowlist can reach the login page but not the app or API.
-**Secrecy:** the repo is public, so the IPs are never committed. Set them in GitHub variable `ALLOWED_IP_CIDRS` or `~/.cdk.json` for local deploys.
+**Secrecy:** the repo is public, so the IPs are never committed. Set them in GitHub variable `ALLOWED_IP_CIDRS` or the git-ignored `infra/cdk.local.json` for local deploys.
 CI (`strictConfig`) refuses to deploy with an empty list unless `-c allowPublicAccess=true` is passed.
 **Revisit if:** we need rate limiting or bot rules → WAF.
+
+## ADR-013 POC model = Amazon Nova 2 Lite (`jp.amazon.nova-2-lite-v1:0`) — supersedes ADR-004's default
+**Decision:** use Nova 2 Lite through the Japan inference profile (Tokyo + Osaka) for both answers and the JA→EN query rewrite. `queryRewriteModelId` falls back to `modelId`.
+**Why:** the account is on the AWS **Free plan** (credits only). Claude on Bedrock is billed through AWS Marketplace, which credits and the Free plan may not cover. Nova is first-party and covered by credits. The `jp.` profile keeps inference in Japan.
+**Trade-off:** answers are less nuanced than Claude Sonnet 5.5's. Switching later is one config value (`modelId`) plus upgrading to the Paid plan. No code change is needed, because Converse is model-agnostic and Claude-only fields are sent only for `anthropic` ids.
+**Safety:** the prompt-cache point is best-effort. If a model rejects it, the call is retried once without it (backend `llm.ts`).

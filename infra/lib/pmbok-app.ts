@@ -68,7 +68,7 @@ export function buildPmbokApp(app: App, config: AppConfig, opts: BuildOptions = 
 
   const placeholders = findPlaceholders(config);
   if (placeholders.length > 0) {
-    const msg = `Config still has placeholder values (CHANGE-ME): ${placeholders.join(', ')}. Set them in ~/.cdk.json (local) or the GitHub variables (CI) before deploying — never commit real values to infra/cdk.json.`;
+    const msg = `Config still has placeholder values (CHANGE-ME): ${placeholders.join(', ')}. Set them in infra/cdk.local.json (local, git-ignored) or the GitHub variables (CI) before deploying — never commit real values to infra/cdk.json.`;
     // CI deploys pass `-c strictConfig=true` so a placeholder can never reach AWS.
     if (String(app.node.tryGetContext('strictConfig')) === 'true') {
       throw new Error(msg);

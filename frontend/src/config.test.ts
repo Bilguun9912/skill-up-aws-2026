@@ -27,3 +27,13 @@ describe('parseConfig', () => {
     expect(() => parseConfig({ ...base, clientId: '' })).toThrow(/clientId/);
   });
 });
+
+describe('identityProvider', () => {
+  it('is passed through when set and sent to Cognito as identity_provider', async () => {
+    const cfg = parseConfig({ ...base, identityProvider: ' Okta ' });
+    expect(cfg.identityProvider).toBe('Okta');
+    const { buildOidcSettings } = await import('./auth/oidc');
+    expect(buildOidcSettings(cfg).extraQueryParams).toEqual({ identity_provider: 'Okta' });
+    expect(buildOidcSettings(parseConfig(base)).extraQueryParams).toBeUndefined();
+  });
+});

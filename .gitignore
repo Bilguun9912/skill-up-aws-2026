@@ -14,3 +14,6 @@ pmbok-source/
 
 # local frontend runtime config
 frontend/public/config.json
+
+# per-developer CDK values (public repo) — see infra/cdk.local.example.json
+infra/cdk.local.json

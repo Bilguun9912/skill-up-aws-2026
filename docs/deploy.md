@@ -16,19 +16,20 @@ Default region `ap-northeast-1`; all commands assume your AWS credentials/profil
 - Corporate TLS interception: if `npm` fails with `SELF_SIGNED_CERT_IN_CHAIN`, prefix npm/npx commands with
   `NODE_EXTRA_CA_CERTS=/path/to/corp-ca.pem` (don't change the global npm config).
 
-## 1. Configure (in `~/.cdk.json`, NOT `infra/cdk.json`)
+## 1. Configure (in `infra/cdk.local.json`, NOT `infra/cdk.json`)
 
 > ⚠️ **The GitHub repo is public.** Keep the committed `infra/cdk.json` placeholders as they are. Put your real values
-> in `~/.cdk.json` in your home directory, which CDK merges into every app's `context`. You can also pass `-c key=value`.
+> in the git-ignored **`infra/cdk.local.json`** (`cp infra/cdk.local.example.json infra/cdk.local.json`), which the app
+> layers over `cdk.json`. (`~/.cdk.json` and `cdk.context.json` do **not** work: CDK lets `cdk.json` win over them.)
 > For deploys from GitHub Actions, use the GitHub variables in `docs/cicd.md`.
 
 ```json
-{ "context": {
+{
   "modelId": "<inference profile id>",
   "budget": { "monthlyLimitUsd": 100, "alertThresholdsUsd": [10, 30, 60], "email": "you@example.com" },
   "cognitoDomainPrefix": "pmbok-assistant-<unique>",
   "allowedIpCidrs": ["<company ip 1>", "<company ip 2>"]
-} }
+}
 ```
 
 Keys:
@@ -103,7 +104,7 @@ A temporary password is emailed; you set a new one at first login.
    aws secretsmanager create-secret --region ap-northeast-1 \
      --name pmbok/okta-client-secret --secret-string '<okta client secret>'
    ```
-3. Add to `~/.cdk.json` → `context` (or GitHub variable `OKTA_CONFIG` for CI):
+3. Add to `infra/cdk.local.json` (or GitHub variable `OKTA_CONFIG` for CI):
    ```json
    "okta": {
      "issuerUrl": "https://<your-org>.okta.com",
@@ -112,7 +113,9 @@ A temporary password is emailed; you set a new one at first login.
    }
    ```
    `issuerUrl` is the org authorization server (`https://<org>.okta.com`) unless you use a custom one (`.../oauth2/default`).
-4. `cd infra && npx cdk deploy --all` (updates Pmbok-Auth with the `Okta` IdP and Pmbok-Frontend's app client to allow `Okta` + `COGNITO`).
+4. `cd infra && npx cdk deploy --all -c strictConfig=true` (updates Pmbok-Auth with the `Okta` IdP and Pmbok-Frontend's app client to allow `Okta` + `COGNITO`).
+   `config.json` then gets `"identityProvider": "Okta"`, so **Sign in goes straight to Okta** and skips the Cognito page.
+   The admin fallback user can still sign in at the Cognito managed login URL directly.
 5. Users now see an "Okta" button on the Cognito login page. Users sign in with their email (mapped from Okta).
 
 If you rotate the Okta secret, update it in Secrets Manager and redeploy Pmbok-Auth (CloudFormation reads the secret at deploy time).
@@ -165,7 +168,7 @@ Common failures:
 
 - Backend code: `cd infra && npx cdk deploy Pmbok-Api`
 - Frontend: `(cd frontend && npm run build) && (cd infra && npx cdk deploy Pmbok-Frontend)` (CloudFront cache is invalidated automatically)
-- Config change: edit `~/.cdk.json` (or the GitHub variables), `npx cdk diff`, `npx cdk deploy --all -c strictConfig=true`
+- Config change: edit `infra/cdk.local.json` (or the GitHub variables), `npx cdk diff`, `npx cdk deploy --all -c strictConfig=true`
 
 Cross-stack references use CDK "weak" references (`Fn::GetStackOutput`), so stacks aren't locked by exports.
 Always deploy/destroy with `--all` (or in dependency order) to keep consumers consistent.

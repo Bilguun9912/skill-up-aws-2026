@@ -5,8 +5,8 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⛔ blocked. Agents: report r
 ## Human (owner) tasks — require AWS console / Okta access
 | # | Task | Status |
 |---|---|---|
-| H1 | Check credits: Billing → Credits → applicable products. Is Bedrock Marketplace (Claude) covered? | ☐ |
-| H2 | Bedrock → Model access in ap-northeast-1: enable / first-invoke Claude Sonnet 5.5 (or decide on Nova). Run `aws bedrock list-inference-profiles --region ap-northeast-1` and record the profile id in `infra/cdk.json` (`modelId`) | ☐ |
+| H1 | Credits: Free plan, $120 until 2027-03-04 → use Nova (ADR-013) | ☑ |
+| H2 | Model id `jp.amazon.nova-2-lite-v1:0` in `infra/cdk.local.json` + GitHub var `BEDROCK_MODEL_ID`. ⛔ Waiting on AWS account verification (Bedrock AccessDenied "account is being verified") | ◐ |
 | H3 | Okta: admin access or free developer org? Create OIDC Web app (redirect URI given after first deploy: `https://<cognito-domain>.auth.ap-northeast-1.amazoncognito.com/oauth2/idpresponse`), assign users, store client secret in Secrets Manager | ☐ |
 | H4 | Obtain PMBOK 6th & 7th edition PDFs (licensed copies) → `pmbok-source/` (git-ignored) | ☐ |
 | H5 | `npx cdk bootstrap` + `npx cdk deploy --all` (first deploy can run without Okta) | ☐ |
@@ -30,7 +30,7 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⛔ blocked. Agents: report r
 | P2-2 | IP allowlist — done with CloudFront Functions (ADR-012); WAF only if rate limiting is needed | ☑ |
 | P2-3 | Prompt tuning with a small eval set of real PM questions | ☐ |
 | P2-4 | Model A/B: Sonnet 5.5 vs Haiku 4.5 vs Nova | ☐ |
-| P2-5 | Frontend: optional `identityProvider` in config.json to skip Cognito page and go straight to Okta | ☐ |
+| P2-5 | Straight-to-Okta sign-in: `identityProvider` in config.json (set automatically when `okta` is configured) → `identity_provider` on the authorize request | ☑ |
 
 ## CI/CD
 | # | Task | Status |

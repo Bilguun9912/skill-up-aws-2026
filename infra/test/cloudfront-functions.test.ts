@@ -84,3 +84,20 @@ describe('allowedIpCidrs config', () => {
     expect(() => makeApp({ ...ready, strictConfig: true, allowedIpCidrs: ALLOWED })).not.toThrow();
   });
 });
+
+describe('config.json identityProvider', () => {
+  const okta = { okta: { issuerUrl: 'https://example.okta.com', clientId: 'abc', clientSecretName: 'pmbok/okta-client-secret' } };
+  // config.json is zipped into an asset; deploy-time values appear as SourceMarkers.
+  const markers = (t: Template) => {
+    const dep = Object.values(t.findResources('Custom::CDKBucketDeployment'))[0] as any;
+    return JSON.stringify(dep.Properties.SourceMarkers);
+  };
+  test('set to the Okta provider name when Okta is configured', () => {
+    const { stacks } = makeApp({ ...okta, allowPublicAccess: true });
+    expect(markers(Template.fromStack(stacks.frontend))).toContain('OktaIdp');
+  });
+  test('absent without Okta', () => {
+    const { stacks } = makeApp({ allowPublicAccess: true });
+    expect(markers(Template.fromStack(stacks.frontend))).not.toContain('OktaIdp');
+  });
+});

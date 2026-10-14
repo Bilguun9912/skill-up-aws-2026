@@ -73,3 +73,17 @@ describe('config', () => {
     expect(clientIdParamName('dev')).toBe('/pmbok/dev/cognito/client-id');
   });
 });
+
+describe('cdk.local.json overrides', () => {
+  const { withLocalOverrides, loadConfig } = require('../lib/config');
+  const { cdkJsonContext, contextSource } = require('./helpers');
+  test('local values replace cdk.json placeholders; other keys fall through', () => {
+    const base = contextSource(cdkJsonContext());
+    const cfg = loadConfig(
+      withLocalOverrides(base, { modelId: 'global.anthropic.claude-sonnet-5-5', allowedIpCidrs: ['203.0.113.10'] }),
+    );
+    expect(cfg.modelId).toBe('global.anthropic.claude-sonnet-5-5');
+    expect(cfg.allowedIpCidrs).toEqual(['203.0.113.10/32']);
+    expect(cfg.region).toBe('ap-northeast-1');
+  });
+});

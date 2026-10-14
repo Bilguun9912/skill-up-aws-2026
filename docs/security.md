@@ -20,7 +20,7 @@ Internal POC, ~10 users, no VPC (see ADR-001). Security comes from identity, IAM
 
 ## Rules for code
 
-- **The GitHub repo is public:** never commit company IPs, emails, account IDs, Okta details or PMBOK content. Use GitHub variables or `~/.cdk.json`.
+- **The GitHub repo is public:** never commit company IPs, emails, account IDs, Okta details or PMBOK content. Use GitHub variables or the git-ignored `infra/cdk.local.json`.
 - Never log JWTs, full prompts, or full model responses. Usage numbers and ids only.
 - Validate all input (zod) at the handler boundary.
 - Return generic error messages to clients; details go to logs.

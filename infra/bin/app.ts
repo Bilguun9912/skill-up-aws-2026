@@ -1,11 +1,14 @@
 #!/usr/bin/env node
+import * as path from 'node:path';
 import { App } from 'aws-cdk-lib';
-import { loadConfig } from '../lib/config';
+import { LOCAL_CONTEXT_FILE, loadConfig, readLocalContext, withLocalOverrides } from '../lib/config';
 import { buildPmbokApp } from '../lib/pmbok-app';
 import { GithubOidcStack } from '../lib/stacks/github-oidc-stack';
 
 const app = new App();
-const config = loadConfig(app.node);
+// Private per-developer values (model id, email, company IPs) live in git-ignored infra/cdk.local.json.
+const localContext = readLocalContext(path.join(__dirname, '..', LOCAL_CONTEXT_FILE));
+const config = loadConfig(withLocalOverrides(app.node, localContext));
 buildPmbokApp(app, config);
 
 // One-time CI/CD bootstrap stack. Only added with `-c githubOidc=true` so that

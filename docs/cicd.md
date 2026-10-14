@@ -53,22 +53,16 @@ push main ─▶ CI (test ×3, synth) ─▶ deploy job (environment "dev")
    | `COGNITO_DOMAIN_PREFIX` | ✅ | `pmbok-assistant-<something-unique>` |
    | `ALLOWED_IP_CIDRS` | ✅ | company egress IPs, comma-separated or JSON array, e.g. `198.51.100.10, 203.0.113.0/24`. **Never commit these** (public repo). |
    | `AWS_REGION` | – | defaults to `ap-northeast-1` |
-   | `QUERY_REWRITE_MODEL_ID` | – | cheaper model for the JA→EN search-query rewrite |
+   | `QUERY_REWRITE_MODEL_ID` | – | model for the JA→EN search-query rewrite (default: `BEDROCK_MODEL_ID`) |
    | `OKTA_CONFIG` | – | `{"issuerUrl":"https://<org>.okta.com","clientId":"...","clientSecretName":"pmbok/okta-client-secret"}`. The secret value itself stays in Secrets Manager. |
 
    These values are written into `infra/cdk.json` **inside the CI runner only**. The committed `cdk.json` keeps its placeholders, so your email isn't in the repo.
 5. Push to `main`, or run **Actions → Deploy → Run workflow**.
 
 ## Local deploys still work
-Put your private values in **`~/.cdk.json`** (your home directory, never in the repo). CDK merges its `context` into every app:
-```json
-{ "context": {
-  "modelId": "<inference profile id>",
-  "budget": { "monthlyLimitUsd": 100, "alertThresholdsUsd": [10, 30, 60], "email": "you@example.com" },
-  "cognitoDomainPrefix": "pmbok-assistant-<unique>",
-  "allowedIpCidrs": ["<company ip 1>", "<company ip 2>"]
-} }
-```
+Put your private values in **`infra/cdk.local.json`**. It's git-ignored; copy it from `infra/cdk.local.example.json`.
+The app layers it over `cdk.json`. Don't use `~/.cdk.json` or `cdk.context.json` for this: CDK gives the committed
+`cdk.json` precedence over both, so its placeholders would win.
 Then run `npx cdk deploy --all -c strictConfig=true`. Without `allowedIpCidrs`, a local deploy would remove the IP restriction. Local and CI deploys target the same stacks, so keep both sets of values the same.
 
 ## Troubleshooting

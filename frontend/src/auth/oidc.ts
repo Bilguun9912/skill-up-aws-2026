@@ -18,6 +18,8 @@ export function buildOidcSettings(cfg: AppConfig): UserManagerSettings {
     // Cognito has no userinfo-based claims we need beyond the ID token.
     loadUserInfo: false,
     userStore: new WebStorageStateStore({ store: window.sessionStorage }),
+    // Cognito `identity_provider` → redirect straight to Okta instead of the Cognito login page.
+    ...(cfg.identityProvider ? { extraQueryParams: { identity_provider: cfg.identityProvider } } : {}),
   };
 }
 

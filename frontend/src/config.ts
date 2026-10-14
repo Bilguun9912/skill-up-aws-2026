@@ -10,6 +10,8 @@ export interface AppConfig {
    * instead of Cognito. Ignored in production builds (`import.meta.env.DEV` is false there).
    */
   localDev?: boolean;
+  /** Cognito identity provider to go straight to (e.g. "Okta"), skipping the Cognito login page. */
+  identityProvider?: string;
 }
 
 const REQUIRED_KEYS: (keyof AppConfig)[] = ['region', 'userPoolId', 'clientId', 'cognitoDomain'];
@@ -35,6 +37,9 @@ export function parseConfig(raw: unknown): AppConfig {
       .replace(/^https?:\/\//, '')
       .replace(/\/+$/, ''),
     ...(import.meta.env.DEV && obj.localDev === true ? { localDev: true } : {}),
+    ...(typeof obj.identityProvider === 'string' && obj.identityProvider.trim()
+      ? { identityProvider: obj.identityProvider.trim() }
+      : {}),
   };
 }
 

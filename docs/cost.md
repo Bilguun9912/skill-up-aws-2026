@@ -11,13 +11,14 @@ Funding: AWS credits ($100 signup + up to $100 activities). **Free tier ≠ cred
 | Secrets Manager (Okta secret) | credits | $0.40 |
 | AWS Budgets (1 budget) | free | $0 |
 | IP allowlist (CloudFront Functions, ADR-012) | free tier (2M invocations/mo) | ~$0 |
-| **LLM: Claude Sonnet 5.5** (~2,200 q/mo × ~8k in / ~1k out) | ⚠️ Marketplace — may NOT be covered by credits | ~$15–60 |
+| **LLM: Amazon Nova 2 Lite** (ADR-013; ~2,200 q/mo × ~8k in / ~1k out) | credits (first-party) | a few $ (check Bedrock pricing) |
+| *(alternative)* Claude Sonnet 5.5 | ⚠️ Marketplace: needs the Paid plan, may NOT be covered by credits | ~$15–60 |
 | JA→EN query rewrite for Japanese questions (~200 tokens each) | same as LLM | ~$1–3 |
 | **Total** | | **~$20–80** |
 
 Japanese text uses more tokens per character than English, so Japanese-heavy usage costs roughly 20–40% more LLM output tokens for the same answer length. Still within the estimate range.
 
-## ⚠️ Open: are Claude models covered by our credits?
+## Decided (ADR-013): Free plan → Nova. Background on Claude coverage:
 Claude on Bedrock is billed via AWS Marketplace; promotional credits often exclude Marketplace charges, and some
 account plans can't subscribe at all. Check **Billing → Credits → applicable products** and try enabling Claude in
 **Bedrock → Model access**. If not covered → set `modelId` to an Amazon Nova model/profile (no architecture change).

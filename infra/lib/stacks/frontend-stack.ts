@@ -26,8 +26,6 @@ export interface FrontendStackProps extends StackProps {
 
 export const FRONTEND_DIST = path.resolve(__dirname, '../../../frontend/dist');
 
-/** Headers the SPA sends to /api/* that must reach the Lambda. Never `Authorization` (OAC SigV4) or `Host`. */
-export const API_FORWARDED_HEADERS = ['x-auth-token', 'x-amz-content-sha256', 'content-type', 'accept', 'x-ui-lang'];
 
 
 /**
@@ -70,12 +68,11 @@ export class FrontendStack extends Stack {
         })
       : undefined;
 
-    const apiOriginRequestPolicy = new cloudfront.OriginRequestPolicy(this, 'ApiOriginRequestPolicy', {
-      comment: 'PMBOK /api/* -> Lambda URL (OAC). No Host/Authorization.',
-      headerBehavior: cloudfront.OriginRequestHeaderBehavior.allowList(...API_FORWARDED_HEADERS),
-      queryStringBehavior: cloudfront.OriginRequestQueryStringBehavior.all(),
-      cookieBehavior: cloudfront.OriginRequestCookieBehavior.none(),
-    });
+    // /api/* → Lambda URL (OAC): AWS's documented pattern is the managed AllViewerExceptHostHeader
+    // policy. A custom allow-list can't name `x-amz-content-sha256` (CloudFront rejects x-amz-*
+    // headers in policies), yet the viewer's body hash must reach the OAC signer for POST/PUT.
+    // Host is dropped (the Function URL needs its own); OAC overwrites Authorization with SigV4.
+    const apiOriginRequestPolicy = cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER;
 
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
       comment: `PMBOK Assistant (${config.stage})`,
@@ -182,6 +179,8 @@ export class FrontendStack extends Stack {
         userPoolId: userPool.userPoolId,
         clientId: this.userPoolClient.userPoolClientId,
         cognitoDomain: props.cognitoDomainHost, // bare host, no scheme
+        // With Okta configured, the SPA skips the Cognito page and goes straight to Okta.
+        ...(props.oktaProvider ? { identityProvider: props.oktaProvider.providerName } : {}),
       }),
     );
 

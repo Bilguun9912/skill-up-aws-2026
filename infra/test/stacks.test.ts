@@ -345,16 +345,13 @@ describe('Pmbok-Frontend', () => {
         ],
       }),
     });
-    const orp = Object.values(t.findResources('AWS::CloudFront::OriginRequestPolicy'))[0];
-    const cfg = orp.Properties.OriginRequestPolicyConfig;
-    expect(cfg.HeadersConfig.HeaderBehavior).toBe('whitelist');
-    const headers: string[] = cfg.HeadersConfig.Headers.map((h: string) => h.toLowerCase());
-    expect(headers).toEqual(
-      expect.arrayContaining(['x-auth-token', 'x-amz-content-sha256', 'content-type', 'x-ui-lang']),
-    );
-    expect(headers).not.toContain('authorization');
-    expect(headers).not.toContain('host');
-    expect(cfg.QueryStringsConfig.QueryStringBehavior).toBe('all');
+    // Managed AllViewerExceptHostHeader (custom policies may not list x-amz-* headers — CloudFront 400).
+    t.resourceCountIs('AWS::CloudFront::OriginRequestPolicy', 0);
+    t.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({
+        CacheBehaviors: [Match.objectLike({ PathPattern: '/api/*', OriginRequestPolicyId: 'b689b0a8-53d0-40ab-baf2-68738e2966ac' })],
+      }),
+    });
   });
 
   test('SPA routing does not mask API errors (no distribution error responses; rewrite fn on default only)', () => {

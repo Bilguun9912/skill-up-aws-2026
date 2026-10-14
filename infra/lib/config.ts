@@ -55,7 +55,7 @@ export interface AppConfig {
   /**
    * IPv4 addresses/CIDRs allowed to reach CloudFront (site + /api). Empty = open to the internet.
    * Never commit real company IPs (public repo): set via GitHub variable ALLOWED_IP_CIDRS,
-   * `-c allowedIpCidrs='[...]'`, or ~/.cdk.json. Normalised to CIDR (bare IP → /32).
+   * `-c allowedIpCidrs='[...]'`, or infra/cdk.local.json. Normalised to CIDR (bare IP → /32).
    */
   allowedIpCidrs: string[];
   reservedConcurrency?: number;
@@ -276,4 +276,29 @@ export function findPlaceholders(config: AppConfig): string[] {
 /** SSM parameter holding the User Pool Client id (ADR-006). Deterministic — no CFN reference. */
 export function clientIdParamName(stage: string): string {
   return `/pmbok/${stage}/cognito/client-id`;
+}
+
+/** Git-ignored per-developer overrides (the repo is public): infra/cdk.local.json, a flat context object. */
+export const LOCAL_CONTEXT_FILE = 'cdk.local.json';
+
+/**
+ * Layers `cdk.local.json` over the CDK context. Needed because CDK gives the committed cdk.json
+ * precedence over ~/.cdk.json and cdk.context.json, so those can't replace its placeholders.
+ * Keys in the local file also win over `-c` (keep CLI-only flags like strictConfig out of it).
+ */
+export function withLocalOverrides(node: ContextSource, local: Record<string, unknown>): ContextSource {
+  return { tryGetContext: (key) => (Object.prototype.hasOwnProperty.call(local, key) ? local[key] : node.tryGetContext(key)) };
+}
+
+export function readLocalContext(file: string): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require('node:fs') as typeof import('node:fs');
+  if (!fs.existsSync(file)) return {};
+  const parsed: unknown = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new ConfigError(`${file} must be a JSON object of context keys`);
+  }
+  const obj = parsed as Record<string, unknown>;
+  // Allow the same shape as cdk.json ({ "context": {...} }) for convenience.
+  return obj.context && typeof obj.context === 'object' ? (obj.context as Record<string, unknown>) : obj;
 }

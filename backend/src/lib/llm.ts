@@ -70,10 +70,14 @@ export function resetModelFieldsStateForTests(): void {
  * support Converse prompt caching (Claude / Nova). Prefixes below the model's minimum
  * cacheable size are simply not cached.
  */
-export function systemBlocks(modelId: string, systemPrompt: string): SystemContentBlock[] {
+export function systemBlocks(modelId: string, systemPrompt: string, withCache = true): SystemContentBlock[] {
   const blocks: SystemContentBlock[] = [{ text: systemPrompt }];
-  if (isAnthropic(modelId) || isNova(modelId)) blocks.push({ cachePoint: { type: 'default' } });
+  if (withCache && supportsCachePoint(modelId)) blocks.push({ cachePoint: { type: 'default' } });
   return blocks;
+}
+
+function supportsCachePoint(modelId: string): boolean {
+  return isAnthropic(modelId) || isNova(modelId);
 }
 
 export interface StreamParams {
@@ -84,11 +88,11 @@ export interface StreamParams {
   abortSignal?: AbortSignal;
 }
 
-async function* streamOnce(p: StreamParams, fields: AdditionalFields): AsyncGenerator<LlmEvent> {
+async function* streamOnce(p: StreamParams, fields: AdditionalFields, withCache: boolean): AsyncGenerator<LlmEvent> {
   const res = await bedrock.send(
     new ConverseStreamCommand({
       modelId: p.modelId,
-      system: systemBlocks(p.modelId, p.systemPrompt),
+      system: systemBlocks(p.modelId, p.systemPrompt, withCache),
       messages: p.messages,
       inferenceConfig: { maxTokens: p.maxTokens },
       additionalModelRequestFields: fields,
@@ -124,21 +128,23 @@ async function* streamOnce(p: StreamParams, fields: AdditionalFields): AsyncGene
 
 /**
  * ConverseStream: yields text deltas, then one `end` event with token usage.
- * If model-specific fields were sent and Bedrock rejects the request with a ValidationException
- * before any delta was emitted, retries once without them (and skips them from then on).
+ * Optional extras (model-specific fields and the prompt-cache point) are best-effort: if Bedrock
+ * rejects the request with a ValidationException before any delta was emitted, retries once
+ * without them and skips them from then on (e.g. a Nova/Claude version without caching support).
  */
 export async function* streamAnswer(p: StreamParams): AsyncGenerator<LlmEvent> {
   const fields = requestFieldsFor(p.modelId);
+  const withCache = !fieldsRejected && supportsCachePoint(p.modelId);
   let emitted = false;
   try {
-    for await (const ev of streamOnce(p, fields)) {
+    for await (const ev of streamOnce(p, fields, withCache)) {
       if (ev.type === 'delta') emitted = true;
       yield ev;
     }
   } catch (err) {
-    if (fields === undefined || emitted || !isValidationError(err)) throw err;
+    if ((fields === undefined && !withCache) || emitted || !isValidationError(err)) throw err;
     markFieldsRejected(p.modelId, err);
-    yield* streamOnce(p, undefined);
+    yield* streamOnce(p, undefined, false);
   }
 }
 

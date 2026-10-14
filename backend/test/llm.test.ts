@@ -134,3 +134,32 @@ describe('model-specific fields safety net', () => {
     expect(streamFields()).toEqual([{ output_config: { effort: 'medium' } }]);
   });
 });
+
+describe('Nova: cache point is best-effort', () => {
+  it('retries without the cache point when Bedrock rejects it, and skips it afterwards', async () => {
+    const { ConverseStreamCommand } = await import('@aws-sdk/client-bedrock-runtime');
+    const { streamAnswer, resetModelFieldsStateForTests } = await import('../src/lib/llm.js');
+    const { mockClient } = await import('aws-sdk-client-mock');
+    const { BedrockRuntimeClient } = await import('@aws-sdk/client-bedrock-runtime');
+    const { converseStreamEvents } = await import('./helpers.js');
+    resetModelFieldsStateForTests();
+    const rt = mockClient(BedrockRuntimeClient);
+    const calls: unknown[][] = [];
+    rt.on(ConverseStreamCommand).callsFake(async (input: { system: unknown[] }) => {
+      calls.push(input.system);
+      if (input.system.length > 1) {
+        throw Object.assign(new Error('cachePoint not supported'), { name: 'ValidationException' });
+      }
+      return { stream: converseStreamEvents(['ok']) };
+    });
+    const params = { modelId: 'jp.amazon.nova-2-lite-v1:0', systemPrompt: 'sys', messages: [], maxTokens: 10 };
+    const out1: string[] = [];
+    for await (const ev of streamAnswer(params)) if (ev.type === 'delta') out1.push(ev.text);
+    expect(out1).toEqual(['ok']);
+    expect(calls.map((s) => s.length)).toEqual([2, 1]);
+    for await (const _ of streamAnswer(params)) void _;
+    expect(calls.map((s) => s.length)).toEqual([2, 1, 1]); // cache point skipped from now on
+    rt.restore();
+    resetModelFieldsStateForTests();
+  });
+});
